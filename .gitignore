@@ -1,0 +1,5 @@
+.env
+.venv/
+data/invoices.db
+output/
+__pycache__/
