@@ -43,3 +43,17 @@ async def lookup_codes(codes: list[str]) -> dict[str, dict]:
             except Exception as e:
                 out[code] = _summary([{"found": False, "error": f"lookup failed: {str(e)[:120]}"}])
     return out
+
+
+
+async def fetch_requirements(codes: list[str]) -> dict[str, dict]:
+    """Ask the HS MCP server for the document checklist of each full 12-digit code."""
+    out: dict[str, dict] = {}
+    async with Client(PythonStdioTransport(HS_SERVER)) as client:
+        for code in codes:
+            try:
+                res = await client.call_tool("get_import_requirements", {"hs_code": code})
+                out[code] = res.data or {"found": False, "error": "Empty answer"}
+            except Exception as e:
+                out[code] = {"hs_code": code, "found": False, "error": f"lookup failed: {str(e)[:120]}"}
+    return out
