@@ -1,5 +1,6 @@
 import asyncio
 import tempfile
+import threading
 import uuid
 from pathlib import Path
 
@@ -63,8 +64,23 @@ def clear_all():
     st.session_state.question_text = ""
 
 
+@st.cache_resource
+def _runtime():
+    """ONE long-lived event loop (in a background thread) shared by every click and every visitor,
+    plus a lock so that two visitors never use the shared model connection at the same moment."""
+    loop = asyncio.new_event_loop()
+    threading.Thread(target=loop.run_forever, daemon=True).start()
+    return loop, threading.Lock()
+
+
 def run(coro):
-    return asyncio.run(coro)
+    """Run async work on that one loop. asyncio.run() would create a new loop for every click and close it,
+    which breaks the model's HTTP connections ('Event loop is closed')."""
+    loop, lock = _runtime()
+    with lock:
+        return asyncio.run_coroutine_threadsafe(coro, loop).result()
+
+
 
 
 async def save_to_db(invoices, db_path):
